@@ -1,0 +1,198 @@
+#! /usr/bin/env perl
+
+# Generate new candy type
+
+use warnings;
+use strict;
+use diagnostics;
+use IO::File;
+
+my $options = get_options();
+
+generate_schema();
+
+sub generate_schema { 
+    generate_result_class($options);
+    generate_resultset_class($options);
+}
+
+sub generate_result_class {
+    my $options = shift;
+    my $result_class = full_package_name($options, "Result");
+    my $result_path = package_to_path($result_class);
+    print STDERR "Package: $result_class\n";
+    print STDERR "File: $result_path\n";
+    #my $outfile = open_or_die($result_path, 'w');
+    my $outfile = open_stdout();
+    write_result_header($options, $outfile);
+    write_result_fields($outfile);
+    write_result_footer($outfile);
+    $outfile->close();
+}
+
+sub full_package_name {
+    my ($options, $result_or_resultset) = @_;
+    my $base = $options->{base_package};
+    my $model = $options->{model_name};
+    return $base . "::Schema::" . $result_or_resultset . "::" . $model;
+}
+
+sub write_result_header {
+    my ($options, $outfile) = @_;
+    my $result_class = full_package_name($options, "Result");
+    $outfile->print("package $result_class;\n\n");
+    $outfile->print("use DBIx::Class::Candy -autotable => v1;\n\n");
+    $outfile->print("primary_column id => {\n");
+    $outfile->print("    data_type => 'int',\n");
+    $outfile->print("    is_auto_increment => 1,\n");
+    $outfile->print("};\n");
+}
+
+sub write_result_fields {
+    my $outfile = shift;
+    foreach my $field (@{$options->{fields}}) {
+        write_field($outfile, $field);
+    }
+}
+
+sub write_field {
+    my ($outfile, $field) = @_;
+
+    my ($field_name, $type, @options) = split(/:/, $field);
+
+    $outfile->print("\n");
+    $outfile->print("column $field_name {\n");
+    $outfile->print("    data_type => '$type',\n");
+    $outfile->print("    is_nullable => 0,\n");
+    $outfile->print("};\n");
+}
+
+sub write_result_footer {
+    my $outfile = shift;
+    $outfile->print("\n\n1;\n");
+}
+
+sub generate_resultset_class {
+    my $options = shift;
+    my $resultset_class = full_package_name($options, "ResultSet");
+    my $resultset_path = package_to_path($resultset_class);
+    print STDERR "Package: $resultset_class\n";
+    print STDERR "File: $resultset_path\n";
+    my $outfile = open_stdout();
+    generate_resultset_header($options, $outfile);
+    $outfile->close();
+}
+
+sub generate_resultset_header {
+    my ($options, $outfile) = @_;
+    my $header = "";
+}
+
+sub open_or_die {
+    my ($filename, $mode) = @_;
+    my $file;
+    unless ($file = IO::File->new($filename, $mode)) {
+        die "Cannot open '$filename' : $!";
+    }
+    return $file;
+}
+
+sub open_stdout {
+    my $outfile = IO::Handle->new() or die "IO::Handle->new : $!";
+    $outfile->fdopen(fileno(STDOUT), 'w')
+        or die "cannot open IO::Handle for STDOUT : $!";
+    return $outfile;
+}
+
+sub package_to_path {
+    my $package_name = shift;
+    my $path = $package_name;
+    $path =~ s/::/\//g;
+    $path = "lib/" . $path . ".pm";
+    return $path;
+}
+
+sub get_options {
+    use File::Basename qw(basename);
+    use Getopt::Long;
+    use Pod::Usage;
+
+    my $prog = basename($0);  # can be used in error messages
+
+    my $options = {
+        help => 0,
+        man => 0,
+        # add further options here with their default values
+    };
+
+    Getopt::Long::Configure(qw{gnu_getopt});
+    my $parsed_ok = GetOptions(
+        'h|help'    =>  \$options->{help},
+        'man'       =>  \$options->{man},
+        # specify further options here with references to
+        # their values in the $options hashref
+    );
+
+    pod2usage(-exitval => 2) unless $parsed_ok;
+
+    # Note -output defaults to *STDOUT if -exitval is 0 or 1.
+    # See the documentation for Pod::Usage under DESCRIPTION.
+    pod2usage(-exitval => 1, -verbose => 1) if $options->{help};
+    pod2usage(-exitval => 1, -verbose => 2) if $options->{man};
+
+    my $base_package = shift @ARGV;
+
+    unless ($base_package) {
+        pod2usage(-exitval => 2);
+    }
+
+    $options->{base_package} = $base_package;
+
+    my $model_name = shift @ARGV;
+
+    unless ($model_name) {
+        pod2usage(-exitval => 2);
+    }
+
+    $options->{model_name} = $model_name;
+
+    my @fields = @ARGV;
+    $options->{fields} = \@fields;
+
+    return $options;
+}
+
+__END__
+
+=head1 NAME
+
+new.perl.dbicandy - generate DBIx::Class::Candy modules for new model
+
+=head1 SYNOPSIS
+
+new.perl.dbicandy [options] Base::Package Classname [field[:option]... ...]
+
+ Options:
+    -h, --help              brief help message
+    --man                   full documentation
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--help> or B<-h>
+
+Print a brief help message and exit.
+
+=item B<--man>
+
+Print the manual page and exit.
+
+
+=back
+
+=head1 DESCRIPTION
+
+B<new.perl.dbicandy> will ...
+
+=cut

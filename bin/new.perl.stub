@@ -1,0 +1,89 @@
+#! /usr/bin/env perl
+
+# Generate a stub subroutine and its call.
+
+use warnings;
+use strict;
+use diagnostics;
+
+my $options = get_options();
+
+my $subname = $options->{sub_name};
+
+print "$subname();\n\n";
+print "sub $subname {\n\n}\n";
+
+sub get_options {
+    use File::Basename qw(basename);
+    use Getopt::Long;
+    use Pod::Usage;
+
+    my $prog = basename($0);  # can be used in error messages
+
+    my $options = {
+        help => 0,
+        man => 0,
+        # add further options here with their default values
+        sub_name => undef,
+    };
+
+    Getopt::Long::Configure(qw{gnu_getopt});
+    my $parsed_ok = GetOptions(
+        'h|help'    =>  \$options->{help},
+        'man'       =>  \$options->{man},
+        # specify further options here with references to their values in the $options hashref
+    );
+
+    pod2usage(-exitval => 2) unless $parsed_ok;
+
+    # Note -output defaults to *STDOUT if -exitval is 0 or 1.
+    # See the documentation for Pod::Usage under DESCRIPTION.
+    pod2usage(-exitval => 1, -verbose => 1) if $options->{help};
+    pod2usage(-exitval => 1, -verbose => 2) if $options->{man};
+
+    # Process remaining arguments from @ARGV here, adding results
+    # to $options.
+
+    unless ($options->{sub_name} = shift @ARGV) {
+        print STDERR "Error: sub_name not specified on command line\n";
+        pod2usage(-exitval => 2);
+    }
+    
+
+    return $options;
+}
+
+__END__
+
+=head1 NAME
+
+new.perl.stub - generate on stdout a new perl subroutine stub and its call
+
+=head1 SYNOPSIS
+
+new.perl.stub [options] sub_name
+
+ Options:
+    -h, --help              brief help message
+    --man                   full documentation
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--help> or B<-h>
+
+Print a brief help message and exit.
+
+=item B<--man>
+
+Print the manual page and exit.
+
+
+=back
+
+=head1 DESCRIPTION
+
+B<new.perl.stub> will ...
+
+=cut
