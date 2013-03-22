@@ -20,10 +20,14 @@ sub generate_result_class {
     my $options = shift;
     my $result_class = full_package_name($options, "Result");
     my $result_path = package_to_path($result_class);
+    if ( -e $result_path ) {
+        print STDERR "$result_path already exists.  Skipping...\n";
+        return;
+    }
     print STDERR "Package: $result_class\n";
     print STDERR "File: $result_path\n";
-    #my $outfile = open_or_die($result_path, 'w');
-    my $outfile = open_stdout();
+    my $outfile = open_or_die($result_path, 'w');
+    #my $outfile = open_stdout();
     write_result_header($options, $outfile);
     write_result_fields($outfile);
     write_result_footer($outfile);
@@ -42,6 +46,8 @@ sub write_result_header {
     my $result_class = full_package_name($options, "Result");
     $outfile->print("package $result_class;\n\n");
     $outfile->print("use DBIx::Class::Candy -autotable => v1;\n\n");
+    $outfile->print("use Moose;\n");
+    $outfile->print("use MooseX::NonMoose\n\n");
     $outfile->print("primary_column id => {\n");
     $outfile->print("    data_type => 'int',\n");
     $outfile->print("    is_auto_increment => 1,\n");
@@ -61,7 +67,7 @@ sub write_field {
     my ($field_name, $type, @options) = split(/:/, $field);
 
     $outfile->print("\n");
-    $outfile->print("column $field_name {\n");
+    $outfile->print("column $field_name => {\n");
     $outfile->print("    data_type => '$type',\n");
     $outfile->print("    is_nullable => 0,\n");
     $outfile->print("};\n");
@@ -69,23 +75,65 @@ sub write_field {
 
 sub write_result_footer {
     my $outfile = shift;
-    $outfile->print("\n\n1;\n");
+    $outfile->print("\n\n1;\n\n");
+    write_result_perldoc($outfile);
+}
+
+sub parse_field_spec {
+    my $field = shift;
+    my ($field_name, $type, @options) = split(/:/, $field);
+    return ($field_name, $type, @options);
+}
+
+sub write_result_perldoc {
+    my $outfile = shift;
+    my $class_name = full_package_name($options, "Result");
+    $outfile->print("=head1 NAME\n\n$class_name\n\n");
+    $outfile->print("=head1 DESCRIPTION\n\n");
+    $outfile->print("=head1 METHODS\n\n");
+    $outfile->print("=head1 ATTRIBUTES\n\n");
+    foreach my $field (@{$options->{fields}}) {
+        my ($field_name, $t, @o) = split(/:/, $field);
+        $outfile->print("=head2 $field_name\n\n");
+    }
+    $outfile->print("=head1 LICENSE AND COPYRIGHT\n\n");
+    $outfile->print("TODO:COPYRIGHT_NOTICE\n\n");
+    $outfile->print("=cut\n");
 }
 
 sub generate_resultset_class {
     my $options = shift;
     my $resultset_class = full_package_name($options, "ResultSet");
     my $resultset_path = package_to_path($resultset_class);
+    if ( -e $resultset_path ) {
+        print STDERR "$resultset_path already exists.  Skipping...\n";
+        return;
+    }
     print STDERR "Package: $resultset_class\n";
     print STDERR "File: $resultset_path\n";
-    my $outfile = open_stdout();
+    #my $outfile = open_stdout();
+    my $outfile = open_or_die($resultset_path, 'w');
     generate_resultset_header($options, $outfile);
+    # no further things for resultset just yet
     $outfile->close();
 }
 
 sub generate_resultset_header {
     my ($options, $outfile) = @_;
-    my $header = "";
+    my $resultset_class = full_package_name($options, "ResultSet");
+    $outfile->print("package $resultset_class;\n");
+    $outfile->print("\n");
+    $outfile->print("use Moose;\n");
+    $outfile->print("extends 'DBIx::Class::ResultSet';\n");
+    $outfile->print("\n1;\n\n");
+    $outfile->print("=head1 NAME\n\n");
+    $outfile->print("$resultset_class\n\n");
+    $outfile->print("=head1 DESCRIPTION\n\n");
+    $outfile->print("=head1 METHODS\n\n");
+    $outfile->print("=head1 ATTRIBUTES\n\n");
+    $outfile->print("=head1 LICENSE AND COPYRIGHT\n\n");
+    $outfile->print("TODO:COPYRIGHT_NOTICE\n\n");
+    $outfile->print("=cut\n");
 }
 
 sub open_or_die {
