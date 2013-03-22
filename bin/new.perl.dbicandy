@@ -45,9 +45,9 @@ sub write_result_header {
     my ($options, $outfile) = @_;
     my $result_class = full_package_name($options, "Result");
     $outfile->print("package $result_class;\n\n");
-    $outfile->print("use DBIx::Class::Candy -autotable => v1;\n\n");
     $outfile->print("use Moose;\n");
     $outfile->print("use MooseX::NonMoose\n\n");
+    $outfile->print("use DBIx::Class::Candy -autotable => v1;\n\n");
     $outfile->print("primary_column id => {\n");
     $outfile->print("    data_type => 'int',\n");
     $outfile->print("    is_auto_increment => 1,\n");
