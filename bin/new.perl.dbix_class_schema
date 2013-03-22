@@ -1,0 +1,151 @@
+#! /usr/bin/env perl
+
+# Generate new DBIx::Class::Schema in right place.
+
+use warnings;
+use strict;
+use diagnostics;
+use IO::File;
+
+my $options = get_options();
+
+generate_schema_class($options);
+
+sub generate_schema_class { 
+    my $options = shift;
+    my $schema_class = $options->{schema_class};
+    print STDERR "Package: $schema_class\n";
+    my $schema_path = package_to_path($schema_class);
+    if ( -e $schema_path ) {
+        print STDERR "$schema_path already exists.  Skipping...\n";
+        return;
+    }
+    print STDERR "File: $schema_path\n";
+    my $outfile = open_or_die($schema_path, 'w');
+    #my $outfile = open_stdout();
+    write_code($outfile, $schema_class);
+    write_docs($outfile, $schema_class);
+    $outfile->close();
+}
+
+sub write_code {
+    my ($outfile, $schema_class) = @_;
+    $outfile->print("package $schema_class;\n\n");
+    $outfile->print("use Moose;\n");
+    $outfile->print("use namespace::autoclean;\n");
+    $outfile->print("\n");
+    $outfile->print("extends 'DBIx::Class::Schema';\n");
+    $outfile->print("__PACKAGE__->load_namespaces;\n");
+    $outfile->print("__PACKAGE__->meta->make_immutable;\n");
+    $outfile->print("\n");
+    $outfile->print("1;\n");
+}
+
+sub write_docs {
+    my ($outfile, $schema_class) = @_;
+    $outfile->print("\n");
+    $outfile->print("=head1 NAME\n\n");
+    $outfile->print("$schema_class\n\n");
+    $outfile->print("=head1 DESCRIPTION\n\n");
+    $outfile->print("DBIx::Class schema\n\n");
+    $outfile->print("=head1 AUTHOR\n\n");
+    $outfile->print("TODO:AUTHOR\n\n");
+    $outfile->print("=head1 COPYRIGHT and LICENSE\n\n");
+    $outfile->print("TODO:COPYRIGHT_AND_LICENSE\n\n");
+    $outfile->print("=cut\n");
+}
+
+sub open_or_die {
+    my ($filename, $mode) = @_;
+    my $file;
+    unless ($file = IO::File->new($filename, $mode)) {
+        die "Cannot open '$filename' : $!";
+    }
+    return $file;
+}
+
+sub open_stdout {
+    my $outfile = IO::Handle->new() or die "IO::Handle->new : $!";
+    $outfile->fdopen(fileno(STDOUT), 'w')
+        or die "cannot open IO::Handle for STDOUT : $!";
+    return $outfile;
+}
+
+sub package_to_path {
+    my $package_name = shift;
+    my $path = $package_name;
+    $path =~ s/::/\//g;
+    $path = "lib/" . $path . ".pm";
+    return $path;
+}
+
+sub get_options {
+    use File::Basename qw(basename);
+    use Getopt::Long;
+    use Pod::Usage;
+
+    my $prog = basename($0);  # can be used in error messages
+
+    my $options = {
+        help => 0,
+        man => 0,
+        # add further options here with their default values
+    };
+
+    Getopt::Long::Configure(qw{gnu_getopt});
+    my $parsed_ok = GetOptions(
+        'h|help'    =>  \$options->{help},
+        'man'       =>  \$options->{man},
+        # specify further options here with references to
+        # their values in the $options hashref
+    );
+
+    pod2usage(-exitval => 2) unless $parsed_ok;
+
+    # Note -output defaults to *STDOUT if -exitval is 0 or 1.
+    # See the documentation for Pod::Usage under DESCRIPTION.
+    pod2usage(-exitval => 1, -verbose => 1) if $options->{help};
+    pod2usage(-exitval => 1, -verbose => 2) if $options->{man};
+
+    $options->{schema_class} = shift @ARGV;
+    unless (defined $options->{schema_class}) {
+        pod2usage(-exitval => 2);
+    }
+
+    return $options;
+}
+
+__END__
+
+=head1 NAME
+
+new.perl.dbix_class_schema - generate DBIx::Class::Schema class
+
+=head1 SYNOPSIS
+
+new.perl.dbix_class_schema [options] My::Package::Schema
+
+ Options:
+    -h, --help              brief help message
+    --man                   full documentation
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--help> or B<-h>
+
+Print a brief help message and exit.
+
+=item B<--man>
+
+Print the manual page and exit.
+
+
+=back
+
+=head1 DESCRIPTION
+
+B<new.perl.dbix_class_schema> will ...
+
+=cut
